@@ -36,7 +36,12 @@
 		<dependency>
 			<groupId>org.mp4parser</groupId>
 			<artifactId>isoparser</artifactId>
-			<version>1.9.27</version>
+			<version>1.9.40</version>
+		</dependency>
+		<dependency>
+			<groupId>org.mp4parser</groupId>
+			<artifactId>muxer</artifactId>
+			<version>1.9.40</version>
 		</dependency>
 	</dependencies>
 

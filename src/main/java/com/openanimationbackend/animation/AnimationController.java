@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.List;
 
 @RestController
@@ -18,7 +19,7 @@ public class AnimationController {
     }
 
     @GetMapping("getFullAnimation")
-    public void getFullAnimation() throws IOException {
-
+    public void getFullAnimation() throws IOException, URISyntaxException {
+        animationService.concatAnimations();
     }
 }
