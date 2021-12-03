@@ -19,7 +19,7 @@ public class AnimationService {
     }
 
     @GetMapping("getFullAnimation")
-    public void getFullAnimation() throws IOException, URISyntaxException {
+    public void getFullAnimation() throws Exception {
         animationPrimaryController.primaryExecutor();
     }
 

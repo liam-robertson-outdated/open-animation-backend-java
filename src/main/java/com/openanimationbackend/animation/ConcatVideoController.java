@@ -1,6 +1,8 @@
 package com.openanimationbackend.animation;
 
 import org.mp4parser.Container;
+import org.mp4parser.IsoFile;
+import org.mp4parser.boxes.iso14496.part12.MovieHeaderBox;
 import org.mp4parser.muxer.Movie;
 import org.mp4parser.muxer.Track;
 import org.mp4parser.muxer.builder.DefaultMp4Builder;
@@ -8,49 +10,59 @@ import org.mp4parser.muxer.container.mp4.MovieCreator;
 import org.mp4parser.muxer.tracks.AppendTrack;
 import org.mp4parser.muxer.tracks.ClippedTrack;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.web.bind.annotation.RestController;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
+import java.util.List;
 
+@RestController
 public class ConcatVideoController {
 
-    String[] videoUris = new String[]{
-            new ClassPathResource("animation-videos/video1.mp4", this.getClass().getClassLoader()).getFile().toString(),
-            new ClassPathResource("animation-videos/video1.mp4", this.getClass().getClassLoader()).getFile().toString(),
-    };
+    protected void joinVideosAndAudio() throws Exception {
+        List<Movie> inMovies = new ArrayList<Movie>();
+        File videoFolderPath = new ClassPathResource("animation-videos", this.getClass().getClassLoader()).getFile();
+        for (File file : videoFolderPath.listFiles()) {
+            inMovies.add(MovieCreator.build(file.toString()));
+        }
+        List<Track> videoTracks = new LinkedList<Track>();
 
-    String[] audioUris = new String[]{
-            new ClassPathResource("static/harry-potter_philosophers-stone_chapter-1.mp4", this.getClass().getClassLoader()).getFile().toString(),
-    };
+        for (Movie m : inMovies) {
+            for (Track track : m.getTracks()) {
+                if (track.getHandler().equals("vide")) {
+                    videoTracks.add(track);
+                }
+            }
+        }
 
-    public ConcatVideoController(String[] videoUris, String[] audioUris) throws IOException {
-        this.videoUris = videoUris;
-        this.audioUris = audioUris;
-    }
-
-    public void concatAnimations() throws IOException {
-        String audioTrackPath = "D:\\Users\\liam\\OneDrive\\programming\\open-animation\\open-animation-backend\\target\\classes\\static\\harry-potter_philosophers-stone_chapter-1.mp4";
-        Movie movie = new Movie();
+        Movie finalMovie = new Movie();
+        String audioTrackPath = new ClassPathResource("trimmed-audiotracks/trimmed-audiotrack.mp4", this.getClass().getClassLoader()).getFile().toString();
         Movie audioMp4 = MovieCreator.build(audioTrackPath);
         Track audioTrack = audioMp4.getTracks().get(0);
-        movie.addTrack(audioTrack);
-        Container out = new DefaultMp4Builder().build(movie);
-        FileChannel fc = new RandomAccessFile(String.format("output.mp4"), "rw").getChannel();
+        finalMovie.addTrack(audioTrack);
+        finalMovie.addTrack(new AppendTrack(videoTracks.toArray(new Track[videoTracks.size()])));
+        Container out = new DefaultMp4Builder().build(finalMovie);
+        FileChannel fc = new RandomAccessFile(String.format("src/main/resources/output/final-video.mp4"), "rw").getChannel();
         out.writeContainer(fc);
         fc.close();
     }
 
-    public void trimAudio() throws IOException {
-        Movie movie = MovieCreator.build("D:\\Users\\liam\\OneDrive\\programming\\open-animation\\open-animation-backend\\target\\classes\\static\\harry-potter_philosophers-stone_chapter-1.mp4");
-        Track audioTrack = movie.getTracks().get(0);
-        movie.setTracks(new LinkedList<Track>());
+    protected void trimAudio() throws Exception {
+        double totalVideoLength = this.getTotalVideoLength();
+        double audioTrackLength = totalVideoLength + 60;
+        String audioMp4Path = new ClassPathResource("static/audiotrack.mp4", this.getClass().getClassLoader()).getFile().toString();
+        Movie audioMovie = MovieCreator.build(audioMp4Path);
+        Track audioTrack = audioMovie.getTracks().get(0);
+        audioMovie.setTracks(new LinkedList<Track>());
 
-        double startTime = 10;
-        double endTime = 20;
+        double startTime = 0;
+        double endTime = audioTrackLength;
         boolean timeCorrected = false;
 
         if (audioTrack.getSyncSamples() != null && audioTrack.getSyncSamples().length > 0) {
@@ -81,10 +93,10 @@ public class ConcatVideoController {
             currentTime += (double) delta / (double) audioTrack.getTrackMetaData().getTimescale();
             currentSample++;
         }
-        movie.addTrack(new AppendTrack(new ClippedTrack(audioTrack, startSample, endSample)));
+        audioMovie.addTrack(new AppendTrack(new ClippedTrack(audioTrack, startSample, endSample)));
 
-        Container out = new DefaultMp4Builder().build(movie);
-        FileOutputStream fos = new FileOutputStream("output.mp4");
+        Container out = new DefaultMp4Builder().build(audioMovie);
+        FileOutputStream fos = new FileOutputStream("src/main/resources/trimmed-audiotracks/trimmed-audiotrack.mp4");
         FileChannel fc = fos.getChannel();
         out.writeContainer(fc);
 
@@ -92,6 +104,16 @@ public class ConcatVideoController {
         fos.close();
     }
 
+    public double getTotalVideoLength() throws Exception {
+        File videoFolderPath = new ClassPathResource("animation-videos", this.getClass().getClassLoader()).getFile();
+        double totalVideoLength = 0;
+        for (File file : videoFolderPath.listFiles()) {
+            IsoFile isoFile = new IsoFile(file);
+            MovieHeaderBox mhb = isoFile.getMovieBox().getMovieHeaderBox();
+            totalVideoLength += mhb.getDuration() / mhb.getTimescale();
+        }
+        return totalVideoLength;
+    }
 
     private double correctTimeToSyncSample(Track track, double cutHere, boolean next) {
         double[] timeOfSyncSamples = new double[track.getSyncSamples().length];
@@ -101,7 +123,6 @@ public class ConcatVideoController {
             long delta = track.getSampleDurations()[i];
 
             if (Arrays.binarySearch(track.getSyncSamples(), currentSample + 1) >= 0) {
-                // samples always start with 1 but we start with zero therefore +1
                 timeOfSyncSamples[Arrays.binarySearch(track.getSyncSamples(), currentSample + 1)] = currentTime;
             }
             currentTime += (double) delta / (double) track.getTrackMetaData().getTimescale();
