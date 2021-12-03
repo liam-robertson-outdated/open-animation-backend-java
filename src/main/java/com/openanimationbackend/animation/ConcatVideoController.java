@@ -12,10 +12,7 @@ import org.mp4parser.muxer.tracks.ClippedTrack;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,31 +23,13 @@ import java.util.List;
 public class ConcatVideoController {
 
     protected void joinVideosAndAudio() throws Exception {
-        List<Movie> inMovies = new ArrayList<Movie>();
-        File videoFolderPath = new ClassPathResource("animation-videos", this.getClass().getClassLoader()).getFile();
-        for (File file : videoFolderPath.listFiles()) {
-            inMovies.add(MovieCreator.build(file.toString()));
-        }
-        List<Track> videoTracks = new LinkedList<Track>();
-
-        for (Movie m : inMovies) {
-            for (Track track : m.getTracks()) {
-                if (track.getHandler().equals("vide")) {
-                    videoTracks.add(track);
-                }
-            }
-        }
-
+        List<Movie> inMovies = new ArrayList<>();
+        List<Track> videoTracks = new LinkedList<>();
         Movie finalMovie = new Movie();
-        String audioTrackPath = new ClassPathResource("trimmed-audiotracks/trimmed-audiotrack.mp4", this.getClass().getClassLoader()).getFile().toString();
-        Movie audioMp4 = MovieCreator.build(audioTrackPath);
-        Track audioTrack = audioMp4.getTracks().get(0);
-        finalMovie.addTrack(audioTrack);
-        finalMovie.addTrack(new AppendTrack(videoTracks.toArray(new Track[videoTracks.size()])));
-        Container out = new DefaultMp4Builder().build(finalMovie);
-        FileChannel fc = new RandomAccessFile(String.format("src/main/resources/output/final-video.mp4"), "rw").getChannel();
-        out.writeContainer(fc);
-        fc.close();
+
+        this.addVideoTracksFromResources(inMovies, videoTracks, finalMovie);
+        this.addAudioTrackFromResources(finalMovie);
+        this.writeFinalMovieTocontainer(finalMovie);
     }
 
     protected void trimAudio() throws Exception {
@@ -104,6 +83,20 @@ public class ConcatVideoController {
         fos.close();
     }
 
+    private void writeFinalMovieTocontainer(Movie finalMovie) throws IOException {
+        Container out = new DefaultMp4Builder().build(finalMovie);
+        FileChannel fc = new RandomAccessFile(String.format("src/main/resources/output/final-video.mp4"), "rw").getChannel();
+        out.writeContainer(fc);
+        fc.close();
+    }
+
+    private void addAudioTrackFromResources(Movie finalMovie) throws IOException {
+        String audioTrackPath = new ClassPathResource("trimmed-audiotracks/trimmed-audiotrack.mp4", this.getClass().getClassLoader()).getFile().toString();
+        Movie audioMp4 = MovieCreator.build(audioTrackPath);
+        Track audioTrack = audioMp4.getTracks().get(0);
+        finalMovie.addTrack(audioTrack);
+    }
+
     public double getTotalVideoLength() throws Exception {
         File videoFolderPath = new ClassPathResource("animation-videos", this.getClass().getClassLoader()).getFile();
         double totalVideoLength = 0;
@@ -113,6 +106,22 @@ public class ConcatVideoController {
             totalVideoLength += mhb.getDuration() / mhb.getTimescale();
         }
         return totalVideoLength;
+    }
+
+    private void addVideoTracksFromResources(List<Movie> inMovies, List<Track> videoTracks, Movie finalMovie) throws IOException {
+        File videoFolderPath = new ClassPathResource("animation-videos", this.getClass().getClassLoader()).getFile();
+        for (File file : videoFolderPath.listFiles()) {
+            inMovies.add(MovieCreator.build(file.toString()));
+        }
+
+        for (Movie m : inMovies) {
+            for (Track track : m.getTracks()) {
+                if (track.getHandler().equals("vide")) {
+                    videoTracks.add(track);
+                }
+            }
+        }
+        finalMovie.addTrack(new AppendTrack(videoTracks.toArray(new Track[videoTracks.size()])));
     }
 
     private double correctTimeToSyncSample(Track track, double cutHere, boolean next) {
