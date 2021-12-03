@@ -1,6 +1,21 @@
 package com.openanimationbackend.controller;
 
+import org.mp4parser.IsoFile;
+import org.mp4parser.boxes.iso14496.part12.TrackBox;
+import org.mp4parser.boxes.iso14496.part15.AvcConfigurationBox;
+import org.mp4parser.muxer.FileRandomAccessSourceImpl;
+import org.mp4parser.muxer.Sample;
+import org.mp4parser.muxer.container.mp4.Mp4SampleList;
+import org.mp4parser.tools.IsoTypeReaderVariable;
+import org.mp4parser.tools.Path;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.io.*;
+import java.nio.Buffer;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.util.List;
 
 @RestController
 public class PrimaryController {
@@ -25,7 +40,7 @@ public class PrimaryController {
         this.updateFinalVideo();
     }
 
-    protected void updateFinalVideo() throws Exception {
+    public void updateFinalVideo() throws Exception {
         videoStitchingController.trimAudio();
         videoStitchingController.joinVideosAndAudio();
     }
