@@ -1,4 +1,4 @@
-package com.openanimationbackend;
+package com.openanimationbackend.controller;
 
 import org.mp4parser.Container;
 import org.mp4parser.IsoFile;

@@ -1,4 +1,4 @@
-package com.openanimationbackend;
+package com.openanimationbackend.controller;
 
 public class UploadController {
 

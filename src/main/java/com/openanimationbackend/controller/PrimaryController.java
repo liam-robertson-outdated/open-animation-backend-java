@@ -1,4 +1,4 @@
-package com.openanimationbackend;
+package com.openanimationbackend.controller;
 
 import org.springframework.web.bind.annotation.RestController;
 
