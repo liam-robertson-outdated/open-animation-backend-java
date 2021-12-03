@@ -1,4 +1,4 @@
-package com.openanimationbackend.animation;
+package com.openanimationbackend;
 
 import org.mp4parser.Container;
 import org.mp4parser.IsoFile;
@@ -20,7 +20,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 @RestController
-public class ConcatVideoController {
+public class VideoStitchingController {
 
     protected void joinVideosAndAudio() throws Exception {
         List<Movie> inMovies = new ArrayList<>();
