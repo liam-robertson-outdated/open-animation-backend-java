@@ -1,118 +1,26 @@
 package com.openanimationbackend.animation;
 
-import org.mp4parser.muxer.tracks.ClippedTrack;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import java.io.*;
 import java.net.URISyntaxException;
-import java.nio.channels.FileChannel;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
-import org.mp4parser.Container;
-import org.mp4parser.muxer.Movie;
-import org.mp4parser.muxer.Track;
-import org.mp4parser.muxer.builder.DefaultMp4Builder;
-import org.mp4parser.muxer.container.mp4.MovieCreator;
-import org.mp4parser.muxer.tracks.AppendTrack;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 @Service
+@RequestMapping(path = "animation")
 public class AnimationService {
 
-    public AnimationService(String[] videoUris) throws IOException {
-        this.videoUris = videoUris;
-    }
-    String[] videoUris = new String[]{
-            new ClassPathResource("animation-videos/video1.mp4", this.getClass().getClassLoader()).getFile().toString(),
-            new ClassPathResource("animation-videos/video1.mp4", this.getClass().getClassLoader()).getFile().toString(),
-//            new ClassPathResource("static/harry-potter_philosophers-stone_chapter-1.mp3", this.getClass().getClassLoader()).getFile().toString(),
-    };
+    AnimationPrimaryController animationPrimaryController;
 
-    public static void concatAnimations() throws IOException {
-        Movie movie = MovieCreator.build("D:\\Users\\liam\\OneDrive\\programming\\open-animation\\open-animation-backend\\target\\classes\\static\\harry-potter_philosophers-stone_chapter-1.mp4");
-        Track audioTrack = movie.getTracks().get(0);
-        movie.setTracks(new LinkedList<Track>());
-
-        double startTime = 10;
-        double endTime = 20;
-        boolean timeCorrected = false;
-
-        if (audioTrack.getSyncSamples() != null && audioTrack.getSyncSamples().length > 0) {
-            if (timeCorrected) {
-                throw new RuntimeException("The startTime has already been corrected by another track with SyncSample. Not Supported.");
-            }
-            startTime = correctTimeToSyncSample(audioTrack, startTime, false);
-            endTime = correctTimeToSyncSample(audioTrack, endTime, true);
-            timeCorrected = true;
-            }
-
-            long currentSample = 0;
-            double currentTime = 0;
-            double lastTime = -1;
-            long startSample = -1;
-            long endSample = -1;
-
-        for (int i = 0; i < audioTrack.getSampleDurations().length; i++) {
-            long delta = audioTrack.getSampleDurations()[i];
-
-            if (currentTime > lastTime && currentTime <= startTime) {
-                startSample = currentSample;
-            }
-            if (currentTime > lastTime && currentTime <= endTime) {
-                endSample = currentSample;
-            }
-            lastTime = currentTime;
-            currentTime += (double) delta / (double) audioTrack.getTrackMetaData().getTimescale();
-            currentSample++;
-        }
-        movie.addTrack(new AppendTrack(new ClippedTrack(audioTrack, startSample, endSample)));
-
-//        String audioTrackPath = "D:\\Users\\liam\\OneDrive\\programming\\open-animation\\open-animation-backend\\target\\classes\\static\\harry-potter_philosophers-stone_chapter-1.mp4";
-//        Movie movie = new Movie();
-//        Movie audioMp4 = MovieCreator.build(audioTrackPath);
-//        Track audioTrack = audioMp4.getTracks().get(0);
-//        movie.addTrack(audioTrack);
-//        Container out = new DefaultMp4Builder().build(movie);
-//        FileChannel fc = new RandomAccessFile(String.format("output.mp4"), "rw").getChannel();
-//        out.writeContainer(fc);
-//        fc.close();
-
-        Container out = new DefaultMp4Builder().build(movie);
-        FileOutputStream fos = new FileOutputStream("output.mp4");
-        FileChannel fc = fos.getChannel();
-        out.writeContainer(fc);
-
-        fc.close();
-        fos.close();
+    public AnimationService(AnimationPrimaryController animationPrimaryController) {
+        this.animationPrimaryController = animationPrimaryController;
     }
 
-
-    private static double correctTimeToSyncSample(Track track, double cutHere, boolean next) {
-        double[] timeOfSyncSamples = new double[track.getSyncSamples().length];
-        long currentSample = 0;
-        double currentTime = 0;
-        for (int i = 0; i < track.getSampleDurations().length; i++) {
-            long delta = track.getSampleDurations()[i];
-
-            if (Arrays.binarySearch(track.getSyncSamples(), currentSample + 1) >= 0) {
-                // samples always start with 1 but we start with zero therefore +1
-                timeOfSyncSamples[Arrays.binarySearch(track.getSyncSamples(), currentSample + 1)] = currentTime;
-            }
-            currentTime += (double) delta / (double) track.getTrackMetaData().getTimescale();
-            currentSample++;
-
-        }
-        double previous = 0;
-        for (double timeOfSyncSample : timeOfSyncSamples) {
-            if (timeOfSyncSample > cutHere) {
-                if (next) {
-                    return timeOfSyncSample;
-                } else {
-                    return previous;
-                }
-            }
-            previous = timeOfSyncSample;
-        }
-        return timeOfSyncSamples[timeOfSyncSamples.length - 1];
+    @GetMapping("getFullAnimation")
+    public void getFullAnimation() throws IOException, URISyntaxException {
+        animationPrimaryController.primaryExecutor();
     }
+
 }
